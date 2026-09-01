@@ -1,7 +1,7 @@
 {
     "name": "tinkerius/kermixcenter-haintegration",
     "image": "mcr.microsoft.com/devcontainers/base:debian",
-    "postCreateCommand": "scripts/setup",
+    "postCreateCommand": "scripts/setup && sudo chown -R vscode:vscode /home/vscode/.claude",
     "forwardPorts": [
         8123
     ],
