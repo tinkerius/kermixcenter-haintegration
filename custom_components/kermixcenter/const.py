@@ -23,3 +23,25 @@ MAX_SCAN_INTERVAL = 3600
 STORAGE_VERSION = 1
 
 CONF_HOME_SERVER_ID = "home_server_id"
+
+CONF_LANGUAGE = "language"
+DEFAULT_LANGUAGE = "de"
+# Languages the portal actually translates the datapoint catalogue into.
+# key = option value / HA-language match, value = the Accept-Language header sent.
+SUPPORTED_LANGUAGES: dict[str, str] = {
+    "de": "de",
+    "fr": "fr-FR",
+    "nl": "nl-NL",
+    "cs": "cs-CZ",
+}
+
+
+def resolve_language(configured: str | None, ha_language: str | None) -> str:
+    """Pick a supported catalogue language.
+
+    Prefer an explicit option, else the Home Assistant UI language, else German.
+    """
+    if configured in SUPPORTED_LANGUAGES:
+        return configured  # type: ignore[return-value]
+    short = (ha_language or "").split("-")[0].lower()
+    return short if short in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE

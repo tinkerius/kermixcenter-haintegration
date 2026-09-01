@@ -28,10 +28,22 @@ _ZERO_GUID = ZERO_GUID
 class KermiClient:
     """Thin async wrapper around the portal API."""
 
-    def __init__(self, session: aiohttp.ClientSession, auth: KermiAuth) -> None:
-        """Store the shared session and the authentication helper."""
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        auth: KermiAuth,
+        *,
+        accept_language: str | None = None,
+    ) -> None:
+        """Store the shared session and the authentication helper.
+
+        ``accept_language`` (e.g. ``"fr-FR"``) is sent on every request; the
+        portal localises datapoint / enum / menu names accordingly. German is the
+        fallback when a language is missing.
+        """
         self._session = session
         self._auth = auth
+        self._accept_language = accept_language
 
     async def _request(
         self,
@@ -46,6 +58,8 @@ class KermiClient:
             "Authorization": f"Bearer {token}",
             "Accept": "application/json, text/plain, */*",
         }
+        if self._accept_language:
+            headers["Accept-Language"] = self._accept_language
         url = f"{API_BASE_URL}{path}"
         try:
             async with self._session.request(

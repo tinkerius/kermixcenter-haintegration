@@ -30,11 +30,23 @@
             "init": {
                 "title": "Kermi X-Center options",
                 "data": {
-                    "scan_interval": "Polling interval (seconds)"
+                    "scan_interval": "Polling interval (seconds)",
+                    "language": "Datapoint language"
                 },
                 "data_description": {
-                    "scan_interval": "How often datapoint values are read from the portal. Lower values update faster but make more cloud requests."
+                    "scan_interval": "How often datapoint values are read from the portal. Lower values update faster but make more cloud requests.",
+                    "language": "Language for entity and state names. The Kermi portal only translates these into a few languages; anything else falls back to German. Changing this re-scans the datapoints on the next reload."
                 }
+            }
+        }
+    },
+    "selector": {
+        "catalogue_language": {
+            "options": {
+                "de": "German (Deutsch)",
+                "fr": "French (Français)",
+                "nl": "Dutch (Nederlands)",
+                "cs": "Czech (Čeština)"
             }
         }
     },

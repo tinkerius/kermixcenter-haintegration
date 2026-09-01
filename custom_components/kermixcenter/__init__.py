@@ -16,7 +16,13 @@ from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import KermiAuth, KermiClient, KermiToken
-from .const import DOMAIN, STORAGE_VERSION
+from .const import (
+    CONF_LANGUAGE,
+    DOMAIN,
+    STORAGE_VERSION,
+    SUPPORTED_LANGUAGES,
+    resolve_language,
+)
 from .coordinator import KermiXCenterDataUpdateCoordinator
 from .data import KermiXCenterData
 
@@ -50,6 +56,8 @@ async def async_setup_entry(
         # Debounced write so an hourly refresh does not hammer storage.
         token_store.async_delay_save(new_token.to_dict, 1)
 
+    language = resolve_language(entry.options.get(CONF_LANGUAGE), hass.config.language)
+
     session = async_get_clientsession(hass)
     auth = KermiAuth(
         session=session,
@@ -58,8 +66,8 @@ async def async_setup_entry(
         token=token,
         on_token_update=_persist_token,
     )
-    client = KermiClient(session, auth)
-    coordinator = KermiXCenterDataUpdateCoordinator(hass, entry, client)
+    client = KermiClient(session, auth, accept_language=SUPPORTED_LANGUAGES[language])
+    coordinator = KermiXCenterDataUpdateCoordinator(hass, entry, client, language)
 
     entry.runtime_data = KermiXCenterData(
         client=client,

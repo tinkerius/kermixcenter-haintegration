@@ -43,6 +43,7 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
         hass: HomeAssistant,
         config_entry: KermiXCenterConfigEntry,
         client: KermiClient,
+        language: str,
     ) -> None:
         """Initialise the coordinator."""
         scan_interval = config_entry.options.get(
@@ -56,7 +57,8 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
             config_entry=config_entry,
         )
         self._client = client
-        self._store: Store[list[dict[str, Any]]] = Store(
+        self._language = language
+        self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{config_entry.entry_id}.datapoints"
         )
         self.home_servers: dict[str, HomeServer] = {}
@@ -80,13 +82,20 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
             raise ConfigEntryNotReady(str(err)) from err
 
         stored = await self._store.async_load()
-        if stored:
+        items = stored.get("datapoints") if isinstance(stored, dict) else None
+        if items and stored.get("language") == self._language:
             self.datapoints = {
                 dp.unique_id: dp
-                for dp in (DiscoveredDatapoint.from_storage(item) for item in stored)
+                for dp in (DiscoveredDatapoint.from_storage(item) for item in items)
             }
-            LOGGER.debug("Restored %d datapoints from storage", len(self.datapoints))
+            LOGGER.debug(
+                "Restored %d datapoints from storage (%s)",
+                len(self.datapoints),
+                self._language,
+            )
         else:
+            # First run, or the catalogue language changed - rebuild from scratch.
+            self.datapoints = {}
             await self._async_discover()
 
     async def async_rediscover(self) -> int:
@@ -130,7 +139,10 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
                         added += 1
 
         await self._store.async_save(
-            [dp.to_storage() for dp in self.datapoints.values()]
+            {
+                "language": self._language,
+                "datapoints": [dp.to_storage() for dp in self.datapoints.values()],
+            }
         )
         LOGGER.info(
             "Discovery complete: %d datapoints total (%d new)",

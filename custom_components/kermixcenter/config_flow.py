@@ -14,12 +14,15 @@ from homeassistant.helpers.storage import Store
 
 from .api import KermiAuth, KermiConnectionError, KermiError, KermiInvalidAuth
 from .const import (
+    CONF_LANGUAGE,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     LOGGER,
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
     STORAGE_VERSION,
+    SUPPORTED_LANGUAGES,
+    resolve_language,
 )
 
 if TYPE_CHECKING:
@@ -155,15 +158,17 @@ class KermiXCenterOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
-        current = self.config_entry.options.get(
-            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        options = self.config_entry.options
+        current_interval = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        current_language = resolve_language(
+            options.get(CONF_LANGUAGE), self.hass.config.language
         )
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_SCAN_INTERVAL, default=current
+                        CONF_SCAN_INTERVAL, default=current_interval
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=MIN_SCAN_INTERVAL,
@@ -171,6 +176,15 @@ class KermiXCenterOptionsFlow(config_entries.OptionsFlow):
                             step=5,
                             unit_of_measurement="s",
                             mode=selector.NumberSelectorMode.BOX,
+                        ),
+                    ),
+                    vol.Required(
+                        CONF_LANGUAGE, default=current_language
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(SUPPORTED_LANGUAGES),
+                            translation_key="catalogue_language",
+                            mode=selector.SelectSelectorMode.DROPDOWN,
                         ),
                     ),
                 },
