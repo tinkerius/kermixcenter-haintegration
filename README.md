@@ -1,60 +1,55 @@
-# Notice
+# Kermi X-Center for Home Assistant
 
-The component and platforms in this repository are not meant to be used by a
-user, but as a "blueprint" that custom component developers can build
-upon, to make more awesome stuff.
+A [Home Assistant](https://www.home-assistant.io/) custom integration for the **Kermi X-Center** heating/ventilation unit, installable via [HACS](https://hacs.xyz/).
 
-HAVE FUN! 😎
+> **Status: work in progress.** This integration was bootstrapped from the
+> [`integration_blueprint`](https://github.com/ludeeus/integration_blueprint) template and is not yet
+> functional against a real Kermi X-Center device — the API client still talks to a placeholder test
+> endpoint and the entities expose placeholder data. See [CONTRIBUTING.md](CONTRIBUTING.md) if you'd
+> like to help finish it.
 
-## Why?
+## Installation
 
-This is simple, by having custom_components look (README + structure) the same
-it is easier for developers to help each other and for users to start using them.
+### HACS (recommended, once published)
 
-If you are a developer and you want to add things to this "blueprint" that you think more
-developers will have use for, please open a PR to add it :)
+1. In HACS, go to **Integrations** → the `⋮` menu → **Custom repositories**.
+2. Add `https://github.com/tinkerius/kermixcenter-haintegration` as an *Integration*.
+3. Search for **Kermi X-Center** and install it.
+4. Restart Home Assistant.
 
-## What?
+### Manual
 
-This repository contains multiple files, here is a overview:
+1. Copy the `custom_components/kermixcenter` folder into your Home Assistant `config/custom_components` directory.
+2. Restart Home Assistant.
 
-File | Purpose | Documentation
--- | -- | --
-`.devcontainer.json` | Used for development/testing with Visual Studio Code. | [Documentation](https://code.visualstudio.com/docs/remote/containers)
-`.github/renovate.json` | Dependency update configuration for Renovate (enabled by default). | [Documentation](https://docs.renovatebot.com/configuration-options/)
-`.github/_dependabot.yml` | Dependency update configuration for Dependabot (disabled, see "Dependency updates" below). | [Documentation](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file)
-`.github/ISSUE_TEMPLATE/*.yml` | Templates for the issue tracker | [Documentation](https://help.github.com/en/github/building-a-strong-community/configuring-issue-templates-for-your-repository)
-`custom_components/integration_blueprint/*` | Integration files, this is where everything happens. | [Documentation](https://developers.home-assistant.io/docs/creating_component_index)
-`CONTRIBUTING.md` | Guidelines on how to contribute. | [Documentation](https://help.github.com/en/github/building-a-strong-community/setting-guidelines-for-repository-contributors)
-`LICENSE` | The license file for the project. | [Documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository)
-`README.md` | The file you are reading now, should contain info about the integration, installation and configuration instructions. | [Documentation](https://help.github.com/en/github/writing-on-github/basic-writing-and-formatting-syntax)
-`requirements_dev.txt` | Python packages used for development/testing this integration (also installs lint tooling via `requirements_lint.txt`). | [Documentation](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
-`requirements_lint.txt` | Python packages used to lint this integration (installed by the Lint CI job). | [Documentation](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
-`requirements_common.txt` | Python packages common to CI and local dev, installed first so any pip upgrade completes before other dependencies (e.g. a modern pip). | [Documentation](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
+## Configuration
 
-## Dependency updates
+Configuration is done entirely through the Home Assistant UI:
 
-This template ships with configuration for **two** dependency update tools. Pick
-**one** and remove or disable the other:
+1. Go to **Settings → Devices & Services → Add Integration**.
+2. Search for **Kermi X-Center**.
+3. Enter your username and password when prompted.
 
-- **Renovate** (`.github/renovate.json`) is enabled by default.
-- **Dependabot** (`.github/_dependabot.yml`) is included but disabled — the `_`
-  prefix means GitHub ignores it. To use Dependabot instead, rename the file
-  back to `.github/dependabot.yml` and delete `.github/renovate.json`.
+## Entities
 
-## How?
+The integration currently sets up (placeholder implementations, to be replaced with real Kermi X-Center data points):
 
-1. Create a new repository in GitHub, using this repository as a template by clicking the "Use this template" button in the GitHub UI.
-1. Open your new repository in Visual Studio Code devcontainer (Preferably with the "`Dev Containers: Clone Repository in Named Container Volume...`" option).
-1. Rename all instances of the `integration_blueprint` to `custom_components/<your_integration_domain>` (e.g. `custom_components/awesome_integration`).
-1. Rename all instances of the `Integration Blueprint` to `<Your Integration Name>` (e.g. `Awesome Integration`).
-1. Run the `scripts/develop` to start HA and test out your new integration.
+| Platform | Description |
+| -- | -- |
+| Sensor | Example status sensor |
+| Binary sensor | Example connectivity sensor |
+| Switch | Example toggle |
 
-## Next steps
+## Development
 
-These are some next steps you may want to look into:
-- Add tests to your integration, [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) can help you get started.
-- Add brand images (logo/icon).
-- Create your first release.
-- Share your integration on the [Home Assistant Forum](https://community.home-assistant.io/).
-- Submit your integration to [HACS](https://hacs.xyz/docs/publish/start).
+This repo includes a devcontainer with a standalone Home Assistant instance for local testing.
+
+1. Open the repo in the VS Code devcontainer.
+2. Run `scripts/develop` to start Home Assistant with this integration loaded.
+3. Run `scripts/lint` before submitting changes.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+## License
+
+[MIT](LICENSE)
