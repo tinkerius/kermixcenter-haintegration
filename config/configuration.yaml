@@ -1,5 +1,9 @@
 # https://www.home-assistant.io/integrations/default_config/
-default_config:
+# default_config:
+
+# https://www.home-assistant.io/integrations/frontend/
+frontend:
+config:
 
 # https://www.home-assistant.io/integrations/homeassistant/
 homeassistant:
@@ -9,4 +13,4 @@ homeassistant:
 logger:
   default: info
   logs:
-    custom_components.integration_blueprint: debug
+    custom_components.kermixcenter: debug
