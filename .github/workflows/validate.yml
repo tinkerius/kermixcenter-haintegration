@@ -30,9 +30,11 @@ jobs:
   hacs: # https://github.com/hacs/action
     name: HACS validation
     runs-on: ubuntu-latest
-    # HACS validates against the GitHub API and expects a published, public
-    # repository. It cannot fully validate a private repo, so don't block CI
-    # on it - flip continue-on-error off once the repo is public.
+    # HACS validates against the GitHub API and needs a public, published repo
+    # with topics and (eventually) a release. It can't validate a private repo,
+    # so only run it nightly / on demand and never let it block a push or PR.
+    # Once the repo is public: drop this `if` and the `continue-on-error`.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     continue-on-error: true
     steps:
       - name: Run HACS validation

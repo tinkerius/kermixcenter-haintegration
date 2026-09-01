@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "description": "Enter the credentials you use to sign in at https://portal.kermi.com/XCenterUI/.",
+                "description": "Sign in with the account you use for the Kermi X-Center portal ({portal}).",
                 "data": {
                     "username": "Email address",
                     "password": "Password"

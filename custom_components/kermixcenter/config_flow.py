@@ -77,6 +77,7 @@ class KermiXCenterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=STEP_USER_SCHEMA,
             errors=errors,
+            description_placeholders={"portal": "https://portal.kermi.com/XCenterUI/"},
         )
 
     async def async_step_reauth(
