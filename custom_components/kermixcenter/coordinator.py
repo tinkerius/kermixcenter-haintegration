@@ -1,38 +1,68 @@
-"""DataUpdateCoordinator for kermixcenter."""
+"""DataUpdateCoordinator for the kermixcenter integration."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
-    IntegrationBlueprintApiClientAuthenticationError,
-    IntegrationBlueprintApiClientError,
-    IntegrationBlueprintApiClientRateLimitError,
+    Device,
+    HomeServer,
+    KermiApiError,
+    KermiConnectionError,
+    KermiInvalidAuth,
 )
+from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, LOGGER
 
 if TYPE_CHECKING:
-    from .data import IntegrationBlueprintConfigEntry
+    from homeassistant.core import HomeAssistant
+
+    from .api import KermiClient
+    from .data import KermiXCenterConfigEntry
 
 
-# https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-single-api-poll-for-data-for-all-entities
-class BlueprintDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from the API."""
+@dataclass(slots=True)
+class KermiXCenterSnapshot:
+    """Everything one poll cycle collected from the portal."""
 
-    config_entry: IntegrationBlueprintConfigEntry
+    home_servers: dict[str, HomeServer] = field(default_factory=dict)
+    devices: dict[str, list[Device]] = field(default_factory=dict)
 
-    async def _async_update_data(self) -> Any:
-        """Update data via library."""
+
+class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[KermiXCenterSnapshot]):
+    """Coordinate polling of the Kermi X-Center portal."""
+
+    config_entry: KermiXCenterConfigEntry
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config_entry: KermiXCenterConfigEntry,
+        client: KermiClient,
+    ) -> None:
+        """Initialise the coordinator."""
+        super().__init__(
+            hass,
+            LOGGER,
+            name=DOMAIN,
+            update_interval=DEFAULT_SCAN_INTERVAL,
+            config_entry=config_entry,
+        )
+        self._client = client
+
+    async def _async_update_data(self) -> KermiXCenterSnapshot:
         try:
-            return await self.config_entry.runtime_data.client.async_get_data()
-        except IntegrationBlueprintApiClientAuthenticationError as exception:
-            raise ConfigEntryAuthFailed(exception) from exception
-        except IntegrationBlueprintApiClientRateLimitError as exception:
-            raise UpdateFailed(
-                exception,
-                retry_after=exception.retry_after,
-            ) from exception
-        except IntegrationBlueprintApiClientError as exception:
-            raise UpdateFailed(exception) from exception
+            snapshot = KermiXCenterSnapshot()
+            for home_server in await self._client.async_get_home_servers():
+                snapshot.home_servers[home_server.id] = home_server
+                snapshot.devices[home_server.id] = await self._client.async_get_devices(
+                    home_server.id
+                )
+        except KermiInvalidAuth as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except (KermiConnectionError, KermiApiError) as err:
+            raise UpdateFailed(str(err)) from err
+        return snapshot

@@ -16,3 +16,10 @@ coverage.xml
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+# local secrets for scripts/kermi_probe.py
+.env
+
+# probe output
+kermi-*.har
+out.*.json
+*.probe.json

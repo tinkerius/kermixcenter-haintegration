@@ -1,4 +1,4 @@
-"""Custom types for kermixcenter."""
+"""Custom types for the kermixcenter integration."""
 
 from __future__ import annotations
 
@@ -9,17 +9,18 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.loader import Integration
 
-    from .api import IntegrationBlueprintApiClient
-    from .coordinator import BlueprintDataUpdateCoordinator
+    from .api import KermiAuth, KermiClient
+    from .coordinator import KermiXCenterDataUpdateCoordinator
 
 
-type IntegrationBlueprintConfigEntry = ConfigEntry[IntegrationBlueprintData]
+type KermiXCenterConfigEntry = ConfigEntry[KermiXCenterData]
 
 
 @dataclass
-class IntegrationBlueprintData:
-    """Data for the Blueprint integration."""
+class KermiXCenterData:
+    """Runtime data stored on the config entry."""
 
-    client: IntegrationBlueprintApiClient
-    coordinator: BlueprintDataUpdateCoordinator
+    client: KermiClient
+    auth: KermiAuth
+    coordinator: KermiXCenterDataUpdateCoordinator
     integration: Integration
