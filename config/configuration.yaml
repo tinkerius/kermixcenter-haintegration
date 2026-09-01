@@ -5,6 +5,12 @@
 frontend:
 config:
 
+# History / graphs / energy dashboard. history needs recorder; recorder
+# defaults to a local SQLite db (config/home-assistant_v2.db).
+recorder:
+history:
+logbook:
+
 # https://www.home-assistant.io/integrations/homeassistant/
 homeassistant:
   debug: true
