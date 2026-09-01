@@ -1,4 +1,4 @@
-"""Config flow for the kermixcenter integration."""
+"""Config and options flow for the kermixcenter integration."""
 
 from __future__ import annotations
 
@@ -6,12 +6,21 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 
 from .api import KermiAuth, KermiConnectionError, KermiError, KermiInvalidAuth
-from .const import DOMAIN, LOGGER
+from .const import (
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    LOGGER,
+    MAX_SCAN_INTERVAL,
+    MIN_SCAN_INTERVAL,
+    STORAGE_VERSION,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -36,6 +45,14 @@ class KermiXCenterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialise the flow."""
         self._reauth_entry: config_entries.ConfigEntry | None = None
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,  # noqa: ARG004
+    ) -> KermiXCenterOptionsFlow:
+        """Return the options flow handler."""
+        return KermiXCenterOptionsFlow()
 
     async def async_step_user(
         self,
@@ -80,6 +97,12 @@ class KermiXCenterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data = {**self._reauth_entry.data, **user_input}
             errors = await self._async_validate(data)
             if not errors:
+                # Force a fresh login on reload - the cached token is stale.
+                await Store(
+                    self.hass,
+                    STORAGE_VERSION,
+                    f"{DOMAIN}.{self._reauth_entry.entry_id}.token",
+                ).async_remove()
                 return self.async_update_reload_and_abort(
                     self._reauth_entry,
                     data=data,
@@ -119,3 +142,37 @@ class KermiXCenterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             LOGGER.exception("Unexpected error verifying Kermi credentials: %s", err)
             return {"base": "unknown"}
         return {}
+
+
+class KermiXCenterOptionsFlow(config_entries.OptionsFlow):
+    """Options: currently just the poll interval."""
+
+    async def async_step_init(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        current = self.config_entry.options.get(
+            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_SCAN_INTERVAL, default=current
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=MIN_SCAN_INTERVAL,
+                            max=MAX_SCAN_INTERVAL,
+                            step=5,
+                            unit_of_measurement="s",
+                            mode=selector.NumberSelectorMode.BOX,
+                        ),
+                    ),
+                },
+            ),
+        )

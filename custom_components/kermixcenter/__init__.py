@@ -10,10 +10,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_loaded_integration
 
-from .api import KermiAuth, KermiClient
+from .api import KermiAuth, KermiClient, KermiToken
+from .const import DOMAIN, STORAGE_VERSION
 from .coordinator import KermiXCenterDataUpdateCoordinator
 from .data import KermiXCenterData
 
@@ -29,16 +32,31 @@ PLATFORMS: list[Platform] = [
 ]
 
 
+def _token_store(hass: HomeAssistant, entry_id: str) -> Store[dict]:
+    return Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.token")
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: KermiXCenterConfigEntry,
 ) -> bool:
     """Set up this integration using the UI."""
+    token_store = _token_store(hass, entry.entry_id)
+    stored_token = await token_store.async_load()
+    token = KermiToken.from_dict(stored_token) if stored_token else None
+
+    @callback
+    def _persist_token(new_token: KermiToken) -> None:
+        # Debounced write so an hourly refresh does not hammer storage.
+        token_store.async_delay_save(new_token.to_dict, 1)
+
     session = async_get_clientsession(hass)
     auth = KermiAuth(
         session=session,
         username=entry.data[CONF_USERNAME],
         password=entry.data[CONF_PASSWORD],
+        token=token,
+        on_token_update=_persist_token,
     )
     client = KermiClient(session, auth)
     coordinator = KermiXCenterDataUpdateCoordinator(hass, entry, client)
@@ -63,6 +81,16 @@ async def async_unload_entry(
 ) -> bool:
     """Handle removal of an entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(
+    hass: HomeAssistant, entry: KermiXCenterConfigEntry
+) -> None:
+    """Clean up stored data when the entry is deleted."""
+    await _token_store(hass, entry.entry_id).async_remove()
+    await Store(
+        hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.datapoints"
+    ).async_remove()
 
 
 async def _async_reload_entry(

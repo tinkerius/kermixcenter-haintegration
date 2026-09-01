@@ -25,6 +25,19 @@
             "reauth_successful": "Re-authentication was successful."
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Kermi X-Center options",
+                "data": {
+                    "scan_interval": "Polling interval (seconds)"
+                },
+                "data_description": {
+                    "scan_interval": "How often datapoint values are read from the portal. Lower values update faster but make more cloud requests."
+                }
+            }
+        }
+    },
     "entity": {
         "binary_sensor": {
             "online": {

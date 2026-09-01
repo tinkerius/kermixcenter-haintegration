@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.exceptions import (
     ConfigEntryAuthFailed,
     ConfigEntryNotReady,
@@ -43,11 +45,14 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
         client: KermiClient,
     ) -> None:
         """Initialise the coordinator."""
+        scan_interval = config_entry.options.get(
+            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        )
         super().__init__(
             hass,
             LOGGER,
             name=DOMAIN,
-            update_interval=DEFAULT_SCAN_INTERVAL,
+            update_interval=timedelta(seconds=scan_interval),
             config_entry=config_entry,
         )
         self._client = client

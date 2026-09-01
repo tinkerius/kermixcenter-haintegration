@@ -28,10 +28,13 @@ import time
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from http import HTTPStatus
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urljoin, urlparse
 
 import aiohttp
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from .const import (
     AUTHORIZE_ENDPOINT,
@@ -173,17 +176,20 @@ class KermiAuth:
         username: str,
         password: str,
         token: KermiToken | None = None,
+        on_token_update: Callable[[KermiToken], None] | None = None,
     ) -> None:
         """Store credentials and an optional pre-existing token.
 
         ``session`` is used only for the (cookie-less) token endpoint calls. The
         interactive login runs on a private throwaway session so cookies never
-        leak into ``session``.
+        leak into ``session``. ``on_token_update`` is called (synchronously)
+        whenever a new token set is obtained, so the caller can persist it.
         """
         self._session = session
         self._username = username
         self._password = password
         self._token = token
+        self._on_token_update = on_token_update
         self._lock = asyncio.Lock()
 
     @property
@@ -191,13 +197,19 @@ class KermiAuth:
         """Return the current token, if any."""
         return self._token
 
+    def _set_token(self, token: KermiToken) -> KermiToken:
+        self._token = token
+        if self._on_token_update is not None:
+            self._on_token_update(token)
+        return token
+
     async def async_get_access_token(self) -> str:
         """Return a valid access token, logging in or refreshing as needed."""
         async with self._lock:
             if self._token is None:
-                self._token = await self._async_login()
+                self._set_token(await self._async_login())
             elif self._token.is_expired():
-                self._token = await self._async_refresh_or_login(self._token)
+                self._set_token(await self._async_refresh_or_login(self._token))
             return self._token.access_token
 
     async def async_invalidate(self) -> None:
@@ -208,8 +220,7 @@ class KermiAuth:
     async def async_verify_credentials(self) -> KermiToken:
         """Perform a full login and return the token (used by the config flow)."""
         async with self._lock:
-            self._token = await self._async_login()
-            return self._token
+            return self._set_token(await self._async_login())
 
     async def _async_refresh_or_login(self, token: KermiToken) -> KermiToken:
         if token.refresh_token:
