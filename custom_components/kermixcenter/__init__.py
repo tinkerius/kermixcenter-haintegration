@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.SENSOR,
 ]
 
 
@@ -48,6 +50,7 @@ async def async_setup_entry(
         integration=async_get_loaded_integration(hass, entry.domain),
     )
 
+    await coordinator.async_setup()
     await coordinator.async_config_entry_first_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))

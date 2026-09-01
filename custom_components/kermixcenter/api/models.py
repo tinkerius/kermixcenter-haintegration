@@ -15,6 +15,8 @@ from .const import (
     DATAPOINT_TYPE_BOOL,
     DATAPOINT_TYPE_ENUM,
     DATAPOINT_TYPE_NUMBER,
+    DATAPOINT_TYPE_STRING,
+    USER_LEVEL_END_USER,
 )
 
 
@@ -70,7 +72,11 @@ class Device:
 
 @dataclass(slots=True)
 class DatapointConfig:
-    """Metadata describing a single datapoint of a device type/version."""
+    """Metadata describing a single datapoint of a device type.
+
+    ``DatapointConfigId`` is a catalogue key namespaced by device type: it is the
+    same for every installation that has that device type.
+    """
 
     id: str
     well_known_name: str | None
@@ -85,14 +91,9 @@ class DatapointConfig:
     max_value: float | None
     scale: float
     offset: float
-    possible_values: dict[int, str]
+    possible_values: dict[str, str]
     menu_entry_id: str | None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
-
-    @property
-    def is_number(self) -> bool:
-        """Whether this datapoint carries a numeric measurement."""
-        return self.datapoint_type == DATAPOINT_TYPE_NUMBER
 
     @property
     def is_bool(self) -> bool:
@@ -100,28 +101,49 @@ class DatapointConfig:
         return self.datapoint_type == DATAPOINT_TYPE_BOOL
 
     @property
-    def is_enum(self) -> bool:
-        """Whether this datapoint carries an enumerated/integer state."""
-        return self.datapoint_type == DATAPOINT_TYPE_ENUM
+    def is_string(self) -> bool:
+        """Whether this datapoint carries free text."""
+        return self.datapoint_type == DATAPOINT_TYPE_STRING
+
+    @property
+    def is_enumerated(self) -> bool:
+        """Whether this datapoint has a fixed set of named integer states."""
+        return bool(self.possible_values) and not self.is_bool
+
+    @property
+    def is_numeric(self) -> bool:
+        """Whether this datapoint is a plain number (no enum labels)."""
+        return (
+            self.datapoint_type in (DATAPOINT_TYPE_ENUM, DATAPOINT_TYPE_NUMBER)
+            and not self.is_enumerated
+        )
 
     @property
     def is_writable(self) -> bool:
-        """Whether a normal end user (level 10) may write this datapoint."""
-        return self.user_level_write <= 10  # noqa: PLR2004 - portal's user level
+        """Whether a normal end user may write this datapoint."""
+        return self.user_level_write <= USER_LEVEL_END_USER
+
+    def label_for(self, value: Any) -> str | None:
+        """Return the display label for an enumerated value, if known."""
+        return self.possible_values.get(str(value))
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DatapointConfig:
-        """Build a :class:`DatapointConfig` from a ``GetConfigs`` entry."""
-        possible: dict[int, str] = {}
-        for item in data.get("PossibleValues") or []:
-            if isinstance(item, dict) and "Value" in item:
-                possible[int(item["Value"])] = str(
-                    item.get("DisplayName") or item.get("Key") or item["Value"]
-                )
+        """Build a :class:`DatapointConfig` from a portal datapoint ``Config``."""
+        raw_possible = data.get("PossibleValues")
+        possible: dict[str, str] = {}
+        if isinstance(raw_possible, dict):
+            possible = {str(k): str(v) for k, v in raw_possible.items()}
+        elif isinstance(raw_possible, list):
+            for item in raw_possible:
+                if isinstance(item, dict) and "Value" in item:
+                    possible[str(item["Value"])] = str(
+                        item.get("DisplayName") or item.get("Key") or item["Value"]
+                    )
         return cls(
             id=data["DatapointConfigId"],
-            well_known_name=data.get("WellKnownName"),
-            display_name=data.get("DisplayName", ""),
+            well_known_name=data.get("WellKnownName") or None,
+            display_name=data.get("DisplayName") or "",
             description=data.get("Description") or "",
             unit=data.get("Unit") or "",
             datapoint_type=int(data.get("DatapointType", -1)),
@@ -136,6 +158,14 @@ class DatapointConfig:
             menu_entry_id=data.get("MenuEntryId"),
             raw=data,
         )
+
+
+@dataclass(slots=True)
+class MenuDatapoint:
+    """A datapoint config together with where it sits in the device menu."""
+
+    config: DatapointConfig
+    menu_path: tuple[str, ...]
 
 
 @dataclass(slots=True)
@@ -177,11 +207,9 @@ def _maybe_float(value: Any) -> float | None:
 
 
 __all__ = [
-    "DATAPOINT_TYPE_BOOL",
-    "DATAPOINT_TYPE_ENUM",
-    "DATAPOINT_TYPE_NUMBER",
     "DatapointConfig",
     "DatapointValue",
     "Device",
     "HomeServer",
+    "MenuDatapoint",
 ]

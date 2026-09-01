@@ -30,6 +30,11 @@
             "online": {
                 "name": "Online"
             }
+        },
+        "button": {
+            "rediscover": {
+                "name": "Rediscover datapoints"
+            }
         }
     }
 }

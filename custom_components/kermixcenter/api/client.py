@@ -15,14 +15,14 @@ from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
-from .const import API_BASE_URL, DEFAULT_TIMEOUT
+from .const import API_BASE_URL, DEFAULT_TIMEOUT, ZERO_GUID
 from .exceptions import KermiApiError, KermiConnectionError, KermiInvalidAuth
-from .models import DatapointConfig, DatapointValue, Device, HomeServer
+from .models import DatapointConfig, DatapointValue, Device, HomeServer, MenuDatapoint
 
 if TYPE_CHECKING:
     from .auth import KermiAuth
 
-_ZERO_GUID = "00000000-0000-0000-0000-000000000000"
+_ZERO_GUID = ZERO_GUID
 
 
 class KermiClient:
@@ -199,18 +199,18 @@ class KermiClient:
 
     async def async_discover_datapoints(
         self, home_server_id: str, device_id: str
-    ) -> list[DatapointConfig]:
+    ) -> list[MenuDatapoint]:
         """Walk a device's whole menu tree and return its unique datapoints.
 
         ``Datapoint/GetConfigs`` has no "list all" mode, so datapoints are found
         by recursing through ``Menu/GetChildEntries`` and collecting the
         ``Bundles[].Datapoints[].Config`` blocks. This makes one request per menu
         node (dozens per device) so it belongs in setup / occasional refresh, not
-        the poll loop.
+        the poll loop. The first menu location a datapoint appears in wins.
         """
-        seen: dict[str, DatapointConfig] = {}
+        seen: dict[str, MenuDatapoint] = {}
 
-        async def _walk(parent_id: str) -> None:
+        async def _walk(parent_id: str, path: tuple[str, ...]) -> None:
             res = await self.async_get_menu_child_entries(
                 home_server_id, device_id, parent_menu_entry_id=parent_id
             )
@@ -223,13 +223,15 @@ class KermiClient:
                         continue
                     config_id = config.get("DatapointConfigId")
                     if config_id and config_id not in seen:
-                        seen[config_id] = DatapointConfig.from_dict(config)
+                        seen[config_id] = MenuDatapoint(
+                            config=DatapointConfig.from_dict(config), menu_path=path
+                        )
             for entry in res.get("MenuEntries") or []:
                 entry_id = entry.get("MenuEntryId")
                 if entry_id and entry_id != _ZERO_GUID:
-                    await _walk(entry_id)
+                    await _walk(entry_id, (*path, entry.get("DisplayName") or ""))
 
-        await _walk(_ZERO_GUID)
+        await _walk(_ZERO_GUID, ())
         return list(seen.values())
 
     async def async_resolve_enums(

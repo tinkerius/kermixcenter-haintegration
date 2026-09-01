@@ -11,7 +11,7 @@ from .exceptions import (
     KermiError,
     KermiInvalidAuth,
 )
-from .models import DatapointConfig, DatapointValue, Device, HomeServer
+from .models import DatapointConfig, DatapointValue, Device, HomeServer, MenuDatapoint
 
 __all__ = [
     "DatapointConfig",
@@ -26,4 +26,5 @@ __all__ = [
     "KermiError",
     "KermiInvalidAuth",
     "KermiToken",
+    "MenuDatapoint",
 ]

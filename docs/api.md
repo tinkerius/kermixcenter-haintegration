@@ -163,8 +163,22 @@ that is just the portal's overview-dashboard tile set.
   `4` Defrost · `5` EVU lock · `6` Alarm · `7` Cooling · `8` Lock
 - `HeatingCircuitState`: `0` Off · `1` Heating · `2` Cooling
 
+### How the integration uses this
+
+* **Discovery** (`coordinator._async_discover`): for each device, `client.async_discover_datapoints`
+  walks the menu tree and returns `MenuDatapoint`s. The result is cached with
+  `homeassistant.helpers.storage.Store` so entities appear instantly on restart,
+  and re-run additively by the per-installation **"Rediscover datapoints"**
+  button. Known datapoints are never modified or removed.
+* **Entities**: every non-hidden datapoint becomes a `sensor` (numeric / enum /
+  text) or `binary_sensor` (bool). Only `WellKnownName`s in
+  `datapoints.CURATED` are enabled by default; the rest are created disabled.
+  `unique_id` = `{home_server_id}_{device_serial_or_id}_{datapoint_config_id}`.
+* **Polling** (`coordinator._async_update_data`): one `Datapoint/ReadValues` per
+  home server (chunked at 100 pairs) every 60 s.
+
 ### Not yet captured
 
-- Writing a datapoint (a `SetValue` / `WriteValues` endpoint).
-- Full ventilation (x-well) datapoint set.
+- Writing a datapoint (a `SetValue` / `WriteValues` endpoint) - needed for the
+  planned `number` / `select` entities.
 - Any SignalR / WebSocket channel for live push updates.

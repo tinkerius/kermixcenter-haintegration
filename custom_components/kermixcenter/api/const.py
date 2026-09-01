@@ -32,6 +32,13 @@ DEVICE_TYPE_HEAT_PUMP: Final = 2
 DEVICE_TYPE_VENTILATION: Final = 40
 
 # DatapointConfig.DatapointType values.
-DATAPOINT_TYPE_ENUM: Final = 0
-DATAPOINT_TYPE_NUMBER: Final = 1
+DATAPOINT_TYPE_ENUM: Final = 0  # integer; enumerated when PossibleValues is set
+DATAPOINT_TYPE_NUMBER: Final = 1  # float measurement
 DATAPOINT_TYPE_BOOL: Final = 2
+DATAPOINT_TYPE_STRING: Final = 3
+
+# A normal end user has UserLevel 10; higher levels are installer/service.
+USER_LEVEL_END_USER: Final = 10
+
+# Placeholder GUID the portal uses for "no id".
+ZERO_GUID: Final = "00000000-0000-0000-0000-000000000000"
