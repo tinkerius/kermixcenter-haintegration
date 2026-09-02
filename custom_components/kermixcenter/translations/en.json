@@ -61,5 +61,22 @@
                 "name": "Rediscover datapoints"
             }
         }
+    },
+    "services": {
+        "rediscover": {
+            "name": "Rediscover datapoints",
+            "description": "Re-scans a Kermi X-Center installation for datapoints that have appeared since setup. Additive only - existing entities are never changed or removed.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Installation",
+                    "description": "The Kermi X-Center installation to re-scan. Leave empty to re-scan every configured installation."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "entry_not_found": {
+            "message": "The selected entry was not found or is not a Kermi X-Center installation."
+        }
     }
 }

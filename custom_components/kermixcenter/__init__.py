@@ -25,9 +25,11 @@ from .const import (
 )
 from .coordinator import KermiXCenterDataUpdateCoordinator
 from .data import KermiXCenterData
+from .services import async_setup_services
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.typing import ConfigType
 
     from .data import KermiXCenterConfigEntry
 
@@ -40,6 +42,12 @@ PLATFORMS: list[Platform] = [
 
 def _token_store(hass: HomeAssistant, entry_id: str) -> Store[dict]:
     return Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.token")
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
+    """Register integration-wide services."""
+    async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(
