@@ -1,54 +1,129 @@
 # Kermi X-Center for Home Assistant
 
-A [Home Assistant](https://www.home-assistant.io/) custom integration for the **Kermi X-Center** heating/ventilation unit, installable via [HACS](https://hacs.xyz/).
+A [Home Assistant](https://www.home-assistant.io/) custom integration for
+**Kermi X-Center** heating and ventilation systems (x-change heat pumps, x-well
+ventilation, …), talking to the **Kermi cloud portal** at
+`portal.kermi.com`.
 
-> **Status: work in progress.** This integration was bootstrapped from the
-> [`integration_blueprint`](https://github.com/ludeeus/integration_blueprint) template and is not yet
-> functional against a real Kermi X-Center device — the API client still talks to a placeholder test
-> endpoint and the entities expose placeholder data. See [CONTRIBUTING.md](CONTRIBUTING.md) if you'd
-> like to help finish it.
+Kermi X-Center has **no local API** — the portal is the only way in. This
+integration reproduces what the portal web app does: it signs in with your
+portal account, discovers every datapoint your installation exposes, and turns
+them into Home Assistant entities.
+
+> **Status:** functional and **read-only**. Authentication, discovery and
+> sensors work and are tested against a live installation. Writing values
+> (setpoints, operating modes) is planned but not implemented yet.
+>
+> This is an **unofficial** project and not affiliated with or endorsed by
+> Kermi. It relies on an undocumented API that may change or break at any time.
+
+## Requirements
+
+- Home Assistant **2026.6** or newer
+- A **Kermi X-Center portal account** (the email address and password you use at
+  <https://portal.kermi.com/XCenterUI/>)
+- No multi-factor authentication on the account (only username + password is
+  supported)
+- Your X-Center home server must be **online** and connected to the portal
 
 ## Installation
 
-### HACS (recommended, once published)
+### HACS
 
-1. In HACS, go to **Integrations** → the `⋮` menu → **Custom repositories**.
-2. Add `https://github.com/tinkerius/kermixcenter-haintegration` as an *Integration*.
-3. Search for **Kermi X-Center** and install it.
-4. Restart Home Assistant.
+1. HACS → three-dot menu → **Custom repositories**.
+2. Add `https://github.com/tinkerius/kermixcenter-haintegration`,
+   category **Integration**.
+3. Install **Kermi X-Center** and restart Home Assistant.
 
 ### Manual
 
-1. Copy the `custom_components/kermixcenter` folder into your Home Assistant `config/custom_components` directory.
-2. Restart Home Assistant.
+Copy `custom_components/kermixcenter` into your Home Assistant
+`config/custom_components/` directory and restart.
 
-## Configuration
+## Setup
 
-Configuration is done entirely through the Home Assistant UI:
+**Settings → Devices & Services → Add Integration → Kermi X-Center**, then enter
+your portal email and password.
 
-1. Go to **Settings → Devices & Services → Add Integration**.
-2. Search for **Kermi X-Center**.
-3. Enter your username and password when prompted.
+On first setup the integration walks your installation's menu tree and discovers
+every datapoint (typically 200+ for a heat pump). It creates an entity for each
+one, but only enables a **curated default set** (~40: flow/return/buffer/DHW
+temperatures, operating state, COP, energy totals, power, fan level, …). The
+rest are created **disabled** — enable the ones you want in the entity settings.
 
-## Entities
+### Options
 
-The integration currently sets up (placeholder implementations, to be replaced with real Kermi X-Center data points):
+**Settings → Devices & Services → Kermi X-Center → Configure**
 
-| Platform | Description |
-| -- | -- |
-| Sensor | Example status sensor |
-| Binary sensor | Example connectivity sensor |
-| Switch | Example toggle |
+| Option | Default | Notes |
+| --- | --- | --- |
+| **Polling interval** | 60 s | 30–3600 s. Values are only as fresh as your home server's last push to the portal. |
+| **Datapoint language** | your HA language, else German | The portal only translates names into **German, French, Dutch and Czech**. Anything else falls back to German — there is no English. Changing this re-scans and renames entities on the next reload. |
+
+## Devices & entities
+
+- One Home Assistant **device per Kermi device** — an X-Center "hub" with the
+  heat pump, ventilation unit, etc. linked under it.
+- Entity names come from the datapoint's portal name (and its menu section, for
+  the non-curated ones).
+- `entity_id`s and history are stable across restarts, re-discovery and language
+  changes — they key off device/datapoint IDs, not names.
+- **Energy dashboard:** the `kWh` totals (heat quantity, electrical energy) are
+  exposed as `total_increasing` sensors and can be added under
+  **Settings → Dashboards → Energy**.
+
+### Rediscovering datapoints
+
+If you add hardware later, re-scan without re-adding the integration:
+
+- press the **Rediscover datapoints** button on the X-Center hub device, or
+- call the **`kermixcenter.rediscover`** service (optionally targeting one
+  installation) from an automation.
+
+Re-discovery is **additive only** — it never renames, disables or removes
+existing entities, so your customisations are safe. Devices removed from the
+portal simply go *unavailable*.
+
+## How it works
+
+| Step | |
+| --- | --- |
+| Auth | OAuth2 authorization-code + PKCE against the portal's OpenIddict server; access token cached and refreshed, so restarts don't re-login |
+| Discovery | recursive walk of `Menu/GetChildEntries`, cached to storage |
+| Polling | one `Datapoint/ReadValues` call per installation per interval |
+
+The reverse-engineered API is documented in [`docs/api.md`](docs/api.md).
+
+## Limitations
+
+- **Cloud only** — needs internet, the portal, and an online home server.
+- **Read-only** for now.
+- **Polling** — not real-time; bounded by the portal's own update cadence.
+- **Unofficial API** — no stability guarantees.
+
+## Troubleshooting
+
+- **"Re-authentication required":** your password changed or the token was
+  revoked — follow the prompt to re-enter it.
+- **Enable debug logging:**
+
+  ```yaml
+  logger:
+    logs:
+      custom_components.kermixcenter: debug
+  ```
 
 ## Development
 
-This repo includes a devcontainer with a standalone Home Assistant instance for local testing.
+The repo ships a devcontainer with a standalone Home Assistant instance.
 
-1. Open the repo in the VS Code devcontainer.
-2. Run `scripts/develop` to start Home Assistant with this integration loaded.
-3. Run `scripts/lint` before submitting changes.
+- `scripts/develop` — start Home Assistant with this integration loaded
+- `scripts/lint` — run `ruff` (format + check)
+- `scripts/kermi_probe.py` — standalone script that logs in and dumps devices /
+  datapoints / values (reads credentials from an untracked `.env`; see
+  `.env.example`)
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
