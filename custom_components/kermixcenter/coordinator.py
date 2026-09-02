@@ -22,7 +22,7 @@ from .datapoints import DiscoveredDatapoint
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .api import DatapointValue, Device, HomeServer, KermiClient
+    from .api import DatapointValue, Device, HomeServer, KermiClient, Scene
     from .data import KermiXCenterConfigEntry
 
 _READ_CHUNK = 100
@@ -64,6 +64,8 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
         self.home_servers: dict[str, HomeServer] = {}
         self.devices: dict[str, list[Device]] = {}
         self.datapoints: dict[str, DiscoveredDatapoint] = {}
+        # (home_server_id, scene_id) -> Scene
+        self.scenes: dict[tuple[str, str], Scene] = {}
 
     @property
     def signal_new_datapoints(self) -> str:
@@ -179,6 +181,12 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
                         home_server_id, chunk
                     ):
                         values[value.device_id, value.config_id] = value
+
+            scenes: dict[tuple[str, str], Scene] = {}
+            for hs in servers:
+                for scene in await self._client.async_get_scenes(hs.id):
+                    scenes[hs.id, scene.id] = scene
+            self.scenes = scenes
         except KermiInvalidAuth as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except (KermiConnectionError, KermiApiError) as err:
@@ -220,5 +228,33 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
         except KermiError as err:
             raise HomeAssistantError(
                 f"Failed to write {datapoint.config.id}: {err}"
+            ) from err
+        await self.async_request_refresh()
+
+    async def async_set_scene_enabled(
+        self, home_server_id: str, scene_id: str, *, enabled: bool
+    ) -> None:
+        """Enable or disable a scene, then refresh."""
+        try:
+            await self._client.async_set_scene_enabled(
+                home_server_id, scene_id, enabled=enabled
+            )
+        except KermiInvalidAuth as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except KermiError as err:
+            raise HomeAssistantError(
+                f"Failed to update scene {scene_id}: {err}"
+            ) from err
+        await self.async_request_refresh()
+
+    async def async_execute_scene(self, home_server_id: str, scene_id: str) -> None:
+        """Force-run a scene, then refresh."""
+        try:
+            await self._client.async_execute_scene(home_server_id, scene_id)
+        except KermiInvalidAuth as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except KermiError as err:
+            raise HomeAssistantError(
+                f"Failed to execute scene {scene_id}: {err}"
             ) from err
         await self.async_request_refresh()

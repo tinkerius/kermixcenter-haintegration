@@ -177,8 +177,30 @@ that is just the portal's overview-dashboard tile set.
 * **Polling** (`coordinator._async_update_data`): one `Datapoint/ReadValues` per
   home server (chunked at 100 pairs) every 60 s.
 
+### Writing a datapoint
+
+`POST /Datapoint/WriteValues/{hs}` — body `{ "DatapointValues": [ <item> ] }`
+where each `<item>` is the object `ReadValues` returned (`$type`,
+`DatapointConfigId`, `DeviceId`, `Flags`) with `Value` replaced. `Value` is in
+display units. Verified with live no-op writes for float / int / bool.
+
+### Scenes
+
+Scenes are the controller's rule-based automations (condition tree + actions).
+
+| Method & path | Body | Returns |
+| --- | --- | --- |
+| `GET  /Scene/GetScenesOverview/{hs}` | – | scenes + live state (`SceneState.ConditionIsTrue`, `.ActionIsRunning`) |
+| `GET  /Scene/GetAllScenes/{hs}` | – | full scene definitions (condition trees, actions) |
+| `POST /Scene/GetSceneById/{hs}` | `{"SceneId": …}` | one full scene |
+| `POST /Scene/UpdateSceneSettings/{hs}` | `{"Settings":[{"SceneId":…,"Enabled":true}]}` | list of updated ids — enable/disable, verified |
+| `POST /Scene/ExecuteScene/{hs}` | `{"SceneId": …}` | force-run (not yet used) |
+| `POST /Scene/CalcSceneResult/{hs}` | `{"Scenes":[…]}` | dry-run a scene's effect |
+
+Also present: `AddOrUpdateScene`, `RemoveScene`, `ResetScene`,
+`GetScene{s}By{DeviceId,MenuEntryId,DatapointValue}`.
+
 ### Not yet captured
 
-- Writing a datapoint (a `SetValue` / `WriteValues` endpoint) - needed for the
-  planned `number` / `select` entities.
 - Any SignalR / WebSocket channel for live push updates.
+- The `ExecuteScene` response shape.

@@ -59,6 +59,35 @@ class KermiHomeServerEntity(CoordinatorEntity[KermiXCenterDataUpdateCoordinator]
         return self.coordinator.home_servers.get(self._home_server_id)
 
 
+class KermiSceneEntity(CoordinatorEntity[KermiXCenterDataUpdateCoordinator]):
+    """Entity for an X-Center scene, attached to the installation device."""
+
+    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        coordinator: KermiXCenterDataUpdateCoordinator,
+        home_server_id: str,
+        scene_id: str,
+    ) -> None:
+        """Initialise for a scene on a given installation."""
+        super().__init__(coordinator)
+        self._home_server_id = home_server_id
+        self._scene_id = scene_id
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, home_server_id)})
+
+    @property
+    def _scene(self):  # noqa: ANN202 - api.Scene, avoids an import cycle
+        return self.coordinator.scenes.get((self._home_server_id, self._scene_id))
+
+    @property
+    def available(self) -> bool:
+        """Available while the scene is still returned by the portal."""
+        return super().available and self._scene is not None
+
+
 class KermiDatapointEntity(CoordinatorEntity[KermiXCenterDataUpdateCoordinator]):
     """Base entity for a single Kermi datapoint on a device."""
 

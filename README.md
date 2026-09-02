@@ -90,6 +90,19 @@ A writable datapoint becomes a `number`/`select`/`switch` instead of a
 `sensor`/`binary_sensor` — on an existing install the old read-only entity for
 it is left behind and can be deleted.
 
+### Scenes
+
+X-Center **scenes** ("Szenen") are the controller's own rule-based automations —
+heating/DHW/ventilation schedules, presence/absence modes, PV / Power-to-Heat
+logic. They are exposed on the hub device, disabled by default:
+
+- **`switch` per scene** — enable/disable the scene (e.g. turn on a
+  "Power-to-Heat" scene while your PV is exporting)
+- **`binary_sensor` per scene** — whether the scene's actions are currently
+  applied
+
+New scenes need an integration reload to appear.
+
 ### Rediscovering datapoints
 
 If you add hardware later, re-scan without re-adding the integration:

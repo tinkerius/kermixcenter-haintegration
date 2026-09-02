@@ -17,7 +17,14 @@ import aiohttp
 
 from .const import API_BASE_URL, DEFAULT_TIMEOUT, ZERO_GUID
 from .exceptions import KermiApiError, KermiConnectionError, KermiInvalidAuth
-from .models import DatapointConfig, DatapointValue, Device, HomeServer, MenuDatapoint
+from .models import (
+    DatapointConfig,
+    DatapointValue,
+    Device,
+    HomeServer,
+    MenuDatapoint,
+    Scene,
+)
 
 if TYPE_CHECKING:
     from .auth import KermiAuth
@@ -296,4 +303,29 @@ class KermiClient:
             "POST",
             f"/Alarm/GetCurrentAlarms/{home_server_id}",
             json={"DeviceId": device_id},
+        )
+
+    # -- scenes (rule-based automations) ---------------------------
+
+    async def async_get_scenes(self, home_server_id: str) -> list[Scene]:
+        """List the installation's scenes with their current state."""
+        data = await self._request("GET", f"/Scene/GetScenesOverview/{home_server_id}")
+        return [Scene.from_dict(item) for item in data or []]
+
+    async def async_set_scene_enabled(
+        self, home_server_id: str, scene_id: str, *, enabled: bool
+    ) -> None:
+        """Enable or disable a scene."""
+        await self._request(
+            "POST",
+            f"/Scene/UpdateSceneSettings/{home_server_id}",
+            json={"Settings": [{"SceneId": scene_id, "Enabled": enabled}]},
+        )
+
+    async def async_execute_scene(self, home_server_id: str, scene_id: str) -> None:
+        """Force a scene's actions to run now, ignoring its condition."""
+        await self._request(
+            "POST",
+            f"/Scene/ExecuteScene/{home_server_id}",
+            json={"SceneId": scene_id},
         )

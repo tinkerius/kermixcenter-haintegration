@@ -188,6 +188,37 @@ class MenuDatapoint:
 
 
 @dataclass(slots=True)
+class Scene:
+    """An X-Center scene - a rule-based automation with a condition + actions."""
+
+    id: str
+    name: str
+    description: str
+    enabled: bool
+    condition_is_true: bool | None
+    action_is_running: bool | None
+    user_level_write: int
+    priority: int
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Scene:
+        """Build a :class:`Scene` from a ``GetScenesOverview`` entry."""
+        state = data.get("SceneState") or {}
+        return cls(
+            id=data["SceneId"],
+            name=data.get("DisplayName") or data["SceneId"],
+            description=data.get("Description") or "",
+            enabled=bool(data.get("Enabled", False)),
+            condition_is_true=state.get("ConditionIsTrue"),
+            action_is_running=state.get("ActionIsRunning"),
+            user_level_write=int(data.get("UserLevelWrite", 999)),
+            priority=int(data.get("Priority", 0)),
+            raw=data,
+        )
+
+
+@dataclass(slots=True)
 class DatapointValue:
     """A current value for a ``(device, datapoint)`` pair."""
 
@@ -231,4 +262,5 @@ __all__ = [
     "Device",
     "HomeServer",
     "MenuDatapoint",
+    "Scene",
 ]
