@@ -31,6 +31,7 @@ from homeassistant.const import (
     UnitOfVolumeFlowRate,
 )
 
+from .api.const import DATAPOINT_TYPE_ENUM
 from .api.models import DatapointConfig
 
 if TYPE_CHECKING:
@@ -38,6 +39,39 @@ if TYPE_CHECKING:
 
 PLATFORM_SENSOR = "sensor"
 PLATFORM_BINARY_SENSOR = "binary_sensor"
+PLATFORM_NUMBER = "number"
+PLATFORM_SELECT = "select"
+PLATFORM_SWITCH = "switch"
+
+# Writable controls, keyed by WellKnownName -> target platform. The portal marks
+# many read-only status datapoints as "writable" (even HP_HeatpumpState), so this
+# curated list - not UserLevelWrite alone - decides what becomes a control.
+WRITABLE: dict[str, str] = {
+    # setpoints and offsets
+    "HP_TWESoll": PLATFORM_NUMBER,
+    "HP_TWESollEinmal": PLATFORM_NUMBER,
+    "HP_FixwertMK1": PLATFORM_NUMBER,
+    "HPxyz_TemperatureAdjustMk1": PLATFORM_NUMBER,
+    "HP_SummerModeUpperThresholdMk1": PLATFORM_NUMBER,
+    "HP_SummerModeLowerThresholdMk1": PLATFORM_NUMBER,
+    "EnergyModeECOTempOffsetHk1": PLATFORM_NUMBER,
+    "EnergyModeComfortTempOffsetHk1": PLATFORM_NUMBER,
+    "EnergyModeNormalTempOffsetHk1": PLATFORM_NUMBER,
+    # mode selectors
+    "HPxyz_Mk1OperationMode": PLATFORM_SELECT,
+    "HP_HeizwasserBetriebsartMK1": PLATFORM_SELECT,
+    "HP_EnergyModeHk1": PLATFORM_SELECT,
+    "ManualSaisonMK1": PLATFORM_SELECT,
+    "KWL_Lüftungsstufe": PLATFORM_SELECT,
+    # toggles
+    "HP_General_TWE": PLATFORM_SWITCH,
+    "HP_EinmalTWEPanel": PLATFORM_SWITCH,
+    "HP_LowNoise": PLATFORM_SWITCH,
+    "KWL_Manuel_Modus": PLATFORM_SWITCH,
+    "KWL_Party_Modus": PLATFORM_SWITCH,
+    "KWL_Urlaubs_Modus": PLATFORM_SWITCH,
+    "SchaltzustandEinAus": PLATFORM_SWITCH,
+}
 
 
 @dataclass(slots=True)
@@ -76,13 +110,38 @@ class DiscoveredDatapoint:
     @property
     def platform(self) -> str:
         """Which HA platform should own this datapoint."""
+        wanted = WRITABLE.get(self.config.well_known_name or "")
+        if wanted is not None and self.config.is_writable:
+            if wanted == PLATFORM_SWITCH and self.config.is_bool:
+                return PLATFORM_SWITCH
+            if wanted == PLATFORM_SELECT and self.config.is_enumerated:
+                return PLATFORM_SELECT
+            if wanted == PLATFORM_NUMBER and self.config.is_numeric:
+                return PLATFORM_NUMBER
         return PLATFORM_BINARY_SENSOR if self.config.is_bool else PLATFORM_SENSOR
+
+    @property
+    def is_control(self) -> bool:
+        """Whether this datapoint is exposed as a writable control."""
+        return self.platform in (PLATFORM_NUMBER, PLATFORM_SELECT, PLATFORM_SWITCH)
 
     @property
     def suggested_name(self) -> str:
         """Entity name (device name is prepended by HA via has_entity_name)."""
-        name = self.config.display_name.strip() or self.config.well_known_name or "?"
-        if self.config.well_known_name in CURATED or not self.menu_path:
+        name = self.config.display_name.strip()
+        # Poorly translated datapoints return the raw config UUID as the name.
+        if (
+            not name
+            or name.replace("-", "").casefold()
+            == self.config.id.replace("-", "").casefold()
+        ):
+            name = self.config.well_known_name or "?"
+        if (
+            self.config.well_known_name in CURATED
+            or self.is_control
+            or not self.menu_path
+            or not self.menu_path[-1]
+        ):
             return name
         # Disambiguate the long tail with the deepest menu section.
         return f"{self.menu_path[-1]} {name}".strip()
@@ -93,7 +152,8 @@ class DiscoveredDatapoint:
         wkn = self.config.well_known_name
         if not wkn:
             return False
-        return wkn in CURATED
+        # Controls are deliberate; enable them alongside the curated read set.
+        return wkn in CURATED or self.is_control
 
     def to_storage(self) -> dict[str, Any]:
         """Serialise for :class:`homeassistant.helpers.storage.Store`."""
@@ -328,3 +388,42 @@ def resolve_binary_sensor(config: DatapointConfig) -> BinarySensorDeviceClass | 
     if "alarm" in wkn or "stoerung" in wkn or "störung" in wkn:
         return BinarySensorDeviceClass.PROBLEM
     return None
+
+
+@dataclass(slots=True)
+class NumberPresentation:
+    """Resolved presentation for a number entity."""
+
+    device_class: str | None
+    unit: str | None
+    native_min: float
+    native_max: float
+    step: float
+
+
+def resolve_number(config: DatapointConfig) -> NumberPresentation:
+    """Work out device_class / unit / range / step for a writable number."""
+    unit_dc, _sc, ha_unit = _UNIT_MAP.get(config.unit, (None, None, None))
+    has_range = (
+        config.min_value is not None
+        and config.max_value is not None
+        and config.max_value > config.min_value
+    )
+    is_int = config.datapoint_type == DATAPOINT_TYPE_ENUM
+    return NumberPresentation(
+        device_class=unit_dc,
+        unit=ha_unit or (config.unit or None),
+        native_min=config.min_value if has_range else 0.0,
+        native_max=config.max_value if has_range else 100.0,
+        step=1.0 if is_int else 0.5,
+    )
+
+
+def select_options(config: DatapointConfig) -> list[str]:
+    """Ordered list of enum labels for a select entity."""
+
+    def _key(item: tuple[str, str]) -> tuple[int, str]:
+        raw = item[0]
+        return (int(raw), "") if raw.lstrip("-").isdigit() else (0, raw)
+
+    return [label for _key_, label in sorted(config.possible_values.items(), key=_key)]

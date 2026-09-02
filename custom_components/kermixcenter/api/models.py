@@ -123,6 +123,23 @@ class DatapointConfig:
         """Whether a normal end user may write this datapoint."""
         return self.user_level_write <= USER_LEVEL_END_USER
 
+    @property
+    def clr_type(self) -> str:
+        """The .NET value type, for building a WriteValues ``$type``."""
+        return {
+            DATAPOINT_TYPE_NUMBER: "System.Single",
+            DATAPOINT_TYPE_BOOL: "System.Boolean",
+            DATAPOINT_TYPE_STRING: "System.String",
+        }.get(self.datapoint_type, "System.Int32")
+
+    @property
+    def write_type_string(self) -> str:
+        """Full polymorphic ``$type`` string for a WriteValues item."""
+        return (
+            f"BMS.Shared.DatapointCore.DatapointValue`1"
+            f"[[{self.clr_type}, mscorlib]], BMS.Shared"
+        )
+
     def label_for(self, value: Any) -> str | None:
         """Return the display label for an enumerated value, if known."""
         return self.possible_values.get(str(value))
@@ -133,7 +150,9 @@ class DatapointConfig:
         raw_possible = data.get("PossibleValues")
         possible: dict[str, str] = {}
         if isinstance(raw_possible, dict):
-            possible = {str(k): str(v) for k, v in raw_possible.items()}
+            # Some (badly translated) datapoints return empty labels - fall back
+            # to the raw key so the option is still usable.
+            possible = {str(k): (str(v) or str(k)) for k, v in raw_possible.items()}
         elif isinstance(raw_possible, list):
             for item in raw_possible:
                 if isinstance(item, dict) and "Value" in item:

@@ -91,6 +91,10 @@ class KermiDatapointEntity(CoordinatorEntity[KermiXCenterDataUpdateCoordinator])
     def _config(self):  # noqa: ANN202 - DatapointConfig, avoids an import cycle
         return self._datapoint.config
 
+    async def _async_write(self, value: object) -> None:
+        """Write ``value`` (in display units) to this datapoint."""
+        await self.coordinator.async_write_datapoint(self._datapoint, value)
+
     @property
     def available(self) -> bool:
         """Available only when the last poll returned this datapoint."""

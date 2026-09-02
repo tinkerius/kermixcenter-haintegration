@@ -22,7 +22,7 @@ from .datapoints import DiscoveredDatapoint
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .api import Device, HomeServer, KermiClient
+    from .api import DatapointValue, Device, HomeServer, KermiClient
     from .data import KermiXCenterConfigEntry
 
 _READ_CHUNK = 100
@@ -30,7 +30,7 @@ _READ_CHUNK = 100
 # Device types worth walking for datapoints (skip the bare controller).
 _SKIP_DEVICE_TYPES = frozenset({0})
 
-type ValueMap = dict[tuple[str, str], Any]
+type ValueMap = dict[tuple[str, str], DatapointValue]
 
 
 class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
@@ -178,7 +178,7 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
                     for value in await self._client.async_read_values(
                         home_server_id, chunk
                     ):
-                        values[value.device_id, value.config_id] = value.value
+                        values[value.device_id, value.config_id] = value
         except KermiInvalidAuth as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except (KermiConnectionError, KermiApiError) as err:
@@ -188,9 +188,37 @@ class KermiXCenterDataUpdateCoordinator(DataUpdateCoordinator[ValueMap]):
     # -- lookups used by entities ----------------------------------
 
     def value_for(self, datapoint: DiscoveredDatapoint) -> Any:
-        """Return the last polled value for a datapoint, or ``None``."""
-        return (self.data or {}).get((datapoint.device_id, datapoint.config.id))
+        """Return the last polled scalar value for a datapoint, or ``None``."""
+        item = (self.data or {}).get((datapoint.device_id, datapoint.config.id))
+        return item.value if item is not None else None
 
     def has_value(self, datapoint: DiscoveredDatapoint) -> bool:
         """Whether the last poll returned a value for this datapoint."""
         return (datapoint.device_id, datapoint.config.id) in (self.data or {})
+
+    # -- writing --------------------------------------------------
+
+    async def async_write_datapoint(
+        self, datapoint: DiscoveredDatapoint, value: Any
+    ) -> None:
+        """Write a new value for a datapoint, then refresh."""
+        current = (self.data or {}).get((datapoint.device_id, datapoint.config.id))
+        if current is not None:
+            item = {**current.raw, "Value": value}
+        else:
+            item = {
+                "$type": datapoint.config.write_type_string,
+                "DatapointConfigId": datapoint.config.id,
+                "DeviceId": datapoint.device_id,
+                "Flags": 0,
+                "Value": value,
+            }
+        try:
+            await self._client.async_write_values(datapoint.home_server_id, [item])
+        except KermiInvalidAuth as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except KermiError as err:
+            raise HomeAssistantError(
+                f"Failed to write {datapoint.config.id}: {err}"
+            ) from err
+        await self.async_request_refresh()

@@ -10,12 +10,14 @@ integration reproduces what the portal web app does: it signs in with your
 portal account, discovers every datapoint your installation exposes, and turns
 them into Home Assistant entities.
 
-> **Status:** functional and **read-only**. Authentication, discovery and
-> sensors work and are tested against a live installation. Writing values
-> (setpoints, operating modes) is planned but not implemented yet.
+> **Status:** functional. Authentication, discovery and sensors are tested
+> against a live installation. A **curated set of controls** (write) is
+> supported — DHW setpoint, MK1 heating settings, ventilation modes/level, …
+> — the rest stays read-only.
 >
 > This is an **unofficial** project and not affiliated with or endorsed by
 > Kermi. It relies on an undocumented API that may change or break at any time.
+> **Writing changes real settings on your heating system** — use with care.
 
 ## Requirements
 
@@ -72,6 +74,22 @@ rest are created **disabled** — enable the ones you want in the entity setting
   exposed as `total_increasing` sensors and can be added under
   **Settings → Dashboards → Energy**.
 
+### Controls (write)
+
+A hand-picked set of datapoints is exposed as writable entities (the portal
+marks many read-only status values as "writable", so this is a curated list,
+not everything with write permission):
+
+| Type | Examples |
+| --- | --- |
+| `number` | DHW target & one-time target, MK1 constant setpoint, heating-curve parallel shift, eco/normal/comfort offsets, summer/winter changeover temps |
+| `select` | MK1 operating mode & season, heating-mode selection, energy mode, ventilation level |
+| `switch` | DHW enable, one-time DHW charge, quiet mode, ventilation manual/party/holiday, ventilation on/off |
+
+A writable datapoint becomes a `number`/`select`/`switch` instead of a
+`sensor`/`binary_sensor` — on an existing install the old read-only entity for
+it is left behind and can be deleted.
+
 ### Rediscovering datapoints
 
 If you add hardware later, re-scan without re-adding the integration:
@@ -91,13 +109,14 @@ portal simply go *unavailable*.
 | Auth | OAuth2 authorization-code + PKCE against the portal's OpenIddict server; access token cached and refreshed, so restarts don't re-login |
 | Discovery | recursive walk of `Menu/GetChildEntries`, cached to storage |
 | Polling | one `Datapoint/ReadValues` call per installation per interval |
+| Writing | `Datapoint/WriteValues` with the read object, `Value` swapped |
 
 The reverse-engineered API is documented in [`docs/api.md`](docs/api.md).
 
 ## Limitations
 
 - **Cloud only** — needs internet, the portal, and an online home server.
-- **Read-only** for now.
+- Writing is limited to the curated control set above.
 - **Polling** — not real-time; bounded by the portal's own update cadence.
 - **Unofficial API** — no stability guarantees.
 

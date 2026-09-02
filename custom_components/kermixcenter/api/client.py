@@ -190,6 +190,22 @@ class KermiClient:
         )
         return [DatapointValue.from_dict(item) for item in data or []]
 
+    async def async_write_values(
+        self, home_server_id: str, items: list[dict[str, Any]]
+    ) -> Any:
+        """Write datapoint values.
+
+        Each item must be a full datapoint-value object -- ``$type``,
+        ``DatapointConfigId``, ``DeviceId``, ``Flags`` and the new ``Value`` --
+        i.e. what ``ReadValues`` returned with ``Value`` swapped. ``Value`` is in
+        display units (46.0, not 460).
+        """
+        return await self._request(
+            "POST",
+            f"/Datapoint/WriteValues/{home_server_id}",
+            json={"DatapointValues": items},
+        )
+
     # -- menu / enums ------------------------------------------------
 
     async def async_get_menu_child_entries(
