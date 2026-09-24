@@ -23,3 +23,10 @@ config/*
 kermi-*.har
 out.*.json
 *.probe.json
+
+# personal Claude Code overrides (shared config lives in CLAUDE.md and .claude/)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# devcontainer CLI lock file (machine-specific)
+.devcontainer-lock.json

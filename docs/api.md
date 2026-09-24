@@ -157,6 +157,28 @@ datapoints have a blank `WellKnownName`, so `DatapointConfigId` is the stable ke
 Recursive: true` also returns a small `VisualizationDatapoints[]` per device —
 that is just the portal's overview-dashboard tile set.
 
+### ID scope (verified live)
+
+- `DatapointConfigId` is a **global catalogue key namespaced by `DeviceType`** — identical
+  across all installations and firmware versions for the same device type. `GetConfigs`
+  returns the same metadata for an id regardless of which (owned) `{hs}` is in the path or
+  which `DeviceVersion` is passed; passing the wrong `DeviceType` fails with
+  `EX_LO_DATAPOINT_005`. `WellKnownName` is equally stable, which is why the integration's
+  curation tables are keyed by it.
+- The `{hs}` segment in API paths is only an **authorisation check** — it must be a home
+  server the user owns (a bogus GUID → `EX_BE_HOMESERVER_010`).
+- Per installation: `HomeServerId`, `DeviceId` (stable per device instance), device `Serial`
+  (real for heat pump / ventilation, zero GUID for the controller). Which datapoints exist
+  still depends on `DeviceType` + `DeviceOptions`, hence the per-install menu walk.
+
+### Localisation
+
+Datapoint, enum and menu names are localised via the `Accept-Language` request header.
+Available: `de` (base), `fr`, `nl-NL`, `cs-CZ` (the bare `nl` / `cs` fall back to German).
+There is **no English** catalogue — unsupported languages fall back to German. Some
+non-German catalogues contain poor translations (empty enum labels, the config UUID as
+`DisplayName`); the integration substitutes fallbacks.
+
 ### Enums
 
 - `HeatpumpState`: `0` Off · `1` Standby · `2` Heating · `3` Hot water ·
@@ -183,6 +205,19 @@ that is just the portal's overview-dashboard tile set.
 where each `<item>` is the object `ReadValues` returned (`$type`,
 `DatapointConfigId`, `DeviceId`, `Flags`) with `Value` replaced. `Value` is in
 display units. Verified with live no-op writes for float / int / bool.
+
+The `$type` discriminator is required so the .NET backend knows the value type:
+
+```text
+BMS.Shared.DatapointCore.DatapointValue`1[[<clr>, mscorlib]], BMS.Shared
+```
+
+with `<clr>` = `System.Single` (type 1), `System.Int32` (type 0), `System.Boolean`
+(type 2), `System.String` (type 3).
+
+**`UserLevelWrite` is not a reliable "this is a control" signal** — the portal marks many
+read-only status datapoints (including `HP_HeatpumpState`) as writable at user level 10.
+The integration therefore uses a curated allowlist (`datapoints.WRITABLE`).
 
 ### Scenes
 

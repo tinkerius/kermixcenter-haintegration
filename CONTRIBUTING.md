@@ -58,6 +58,24 @@ instance running, already configured with the included
 [`configuration.yaml`](./config/configuration.yaml). Run `scripts/develop` to
 start it.
 
+## Developing with Claude Code
+
+The repository ships with a [Claude Code](https://claude.com/claude-code) setup, so an AI
+assistant can pick up the project context without re-deriving it:
+
+- [`CLAUDE.md`](./CLAUDE.md) — architecture, commands, invariants and gotchas (worth reading
+  as a human, too).
+- [`.claude/settings.json`](./.claude/settings.json) — shared permissions (lint, probe, read-only
+  git are pre-approved; `.env` and `config/.storage/` are blocked) and a hook that runs
+  `ruff format` on every edited Python file.
+- [`.claude/skills/`](./.claude/skills) — project workflows: `/add-datapoint`,
+  `/add-endpoint`, `/run`.
+
+The devcontainer installs Claude Code automatically; run `claude` in the terminal. Personal
+overrides go in `CLAUDE.local.md` or `.claude/settings.local.json` (both gitignored). If
+you learn something new about the portal API, put it in [`docs/api.md`](./docs/api.md) and,
+if it's an invariant, in `CLAUDE.md` — not only in your private Claude memory.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under its MIT License.

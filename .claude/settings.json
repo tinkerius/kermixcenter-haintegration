@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(scripts/lint)",
+      "Bash(ruff check:*)",
+      "Bash(ruff format:*)",
+      "Bash(python3 -m ruff:*)",
+      "Bash(python3 scripts/kermi_probe.py:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./config/.storage/**)",
+      "Read(./**/*.har)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/ruff-format.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
