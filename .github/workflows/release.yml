@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+  # Re-build the zip for an existing release (e.g. one published before this
+  # workflow existed, or if an upload failed).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to (re)build the zip for"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release_zip:
+    name: Build and attach kermixcenter.zip
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload the release asset
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Set manifest version from the tag
+        run: |
+          version="${TAG#v}"
+          manifest=custom_components/kermixcenter/manifest.json
+          jq --arg version "${version}" '.version = $version' "${manifest}" > manifest.tmp
+          mv manifest.tmp "${manifest}"
+          echo "manifest version: $(jq -r .version "${manifest}")"
+
+      # HACS unpacks the zip straight into custom_components/kermixcenter/,
+      # so the integration files must sit at the zip root.
+      - name: Build the zip
+        run: |
+          cd custom_components/kermixcenter
+          zip -r "${GITHUB_WORKSPACE}/kermixcenter.zip" . -x '*__pycache__*' '*.pyc'
+          unzip -l "${GITHUB_WORKSPACE}/kermixcenter.zip"
+
+      - name: Upload the zip to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${TAG}" kermixcenter.zip --clobber --repo "${GITHUB_REPOSITORY}"

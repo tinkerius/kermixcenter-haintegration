@@ -39,8 +39,9 @@ them into Home Assistant entities.
 
 ### Manual
 
-Copy `custom_components/kermixcenter` into your Home Assistant
-`config/custom_components/` directory and restart.
+Download `kermixcenter.zip` from the
+[latest release](https://github.com/tinkerius/kermixcenter-haintegration/releases/latest),
+unpack it into `config/custom_components/kermixcenter/` and restart Home Assistant.
 
 ## Setup
 
